@@ -2,7 +2,6 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { auth } from "./auth";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
 
 const http = httpRouter();
 
@@ -249,8 +248,7 @@ http.route({
       // Update password using the auth system
       // We'll use the Password provider's update method via HTTP
       const userId = tokenData.userId;
-      const siteUrl = process.env.CONVEX_SITE_URL || "http://localhost:5173";
-      
+
       // The password update will be handled by calling the auth API
       // For now, we'll redirect to frontend which will complete the reset
       // Delete token after successful update

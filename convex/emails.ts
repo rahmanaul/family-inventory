@@ -21,7 +21,7 @@ export const sendVerificationEmail = internalAction({
     token: v.string(),
   },
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const verificationUrl = `${siteUrl}/verify-email?token=${args.token}`;
     const resend = getResend();
 
@@ -62,7 +62,7 @@ export const sendPasswordResetEmail = internalAction({
     token: v.string(),
   },
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const resetUrl = `${siteUrl}/reset-password?token=${args.token}`;
     const resend = getResend();
 

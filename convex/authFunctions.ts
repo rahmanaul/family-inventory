@@ -294,7 +294,7 @@ export const changePassword = mutation({
     newPassword: v.string(),
   },
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -310,7 +310,7 @@ export const changePassword = mutation({
 export const resendVerificationEmail = mutation({
   args: {},
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -501,7 +501,7 @@ export const updatePassword = internalMutation({
     newPassword: v.string(),
   },
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     // @convex-dev/auth stores passwords in the "passwords" table
     // We need to verify the current password and update to the new one
     // For now, this is a placeholder - password updates need to go through the auth API
