@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Toaster } from '@/components/ui/sonner'
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL
 if (!convexUrl) {
@@ -26,6 +27,7 @@ function RootComponent() {
     <ConvexAuthProvider client={convex}>
       <Authenticated>
         <div className="min-h-screen">
+          <Toaster position="top-right" richColors closeButton />
           <Header />
           <main className="container mx-auto p-4">
             <Outlet />
@@ -33,6 +35,7 @@ function RootComponent() {
         </div>
       </Authenticated>
       <Unauthenticated>
+        <Toaster position="top-right" richColors closeButton />
         <UnauthenticatedContent />
       </Unauthenticated>
     </ConvexAuthProvider>

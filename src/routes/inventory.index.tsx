@@ -15,8 +15,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { useState } from 'react'
-import { Plus, Edit, Trash2, Package } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, Edit, Trash2, Package, Minus, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { Id } from '../../convex/_generated/dataModel'
 
@@ -121,11 +122,9 @@ function InventoryPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <div>
-                      <span className="text-sm font-medium">Quantity: </span>
-                      <span className="text-sm">
-                        {item.quantity} {item.unit}
-                      </span>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">Quantity</span>
+                      <QuantityControls item={item} />
                     </div>
                     {item.minStock !== undefined && (
                       <div>
@@ -170,6 +169,117 @@ function InventoryPage() {
   )
 }
 
+function QuantityControls({
+  item,
+}: {
+  item: {
+    _id: Id<'inventoryItems'>
+    quantity: number
+    unit: string
+  }
+}) {
+  const updateItem = useMutation(api.inventory.updateInventoryItem)
+  const [quantityInput, setQuantityInput] = useState(item.quantity.toString())
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    setQuantityInput(item.quantity.toString())
+  }, [item.quantity])
+
+  const defaultStep = (() => {
+    const lowerUnit = item.unit.toLowerCase()
+    if (lowerUnit.includes('kg') || lowerUnit.includes('g') || lowerUnit.includes('l')) {
+      return 0.1
+    }
+    return 1
+  })()
+
+  const commitQuantity = async (nextQuantity: number) => {
+    if (!Number.isFinite(nextQuantity)) {
+      setQuantityInput(item.quantity.toString())
+      return
+    }
+
+    const clamped = Math.max(0, Number.parseFloat(nextQuantity.toFixed(2)))
+    if (clamped === item.quantity) {
+      setQuantityInput(clamped.toString())
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      await updateItem({
+        itemId: item._id,
+        quantity: clamped,
+      })
+      toast.success('Quantity updated')
+    } catch (error) {
+      console.error('Failed to update quantity', error)
+      toast.error('Failed to update quantity')
+      setQuantityInput(item.quantity.toString())
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleAdjust = (delta: number) => {
+    const parsed = Number.parseFloat(quantityInput)
+    const current = Number.isFinite(parsed) ? parsed : item.quantity
+    const next = Math.max(0, Number.parseFloat((current + delta).toFixed(2)))
+    setQuantityInput(next.toString())
+    void commitQuantity(next)
+  }
+
+  const handleBlur = () => {
+    const parsed = Number.parseFloat(quantityInput)
+    if (!Number.isFinite(parsed)) {
+      setQuantityInput(item.quantity.toString())
+      return
+    }
+    void commitQuantity(parsed)
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => handleAdjust(-defaultStep)}
+        disabled={isSaving}
+        aria-label="Decrease quantity"
+      >
+        <Minus className="h-4 w-4" />
+      </Button>
+      <Input
+        className="w-24"
+        type="number"
+        step={defaultStep}
+        min={0}
+        value={quantityInput}
+        onChange={(e) => setQuantityInput(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            handleBlur()
+          }
+        }}
+        disabled={isSaving}
+      />
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => handleAdjust(defaultStep)}
+        disabled={isSaving}
+        aria-label="Increase quantity"
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
+      <span className="text-sm text-muted-foreground">{item.unit}</span>
+    </div>
+  )
+}
+
 function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories'>; name: string; icon?: string }> }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -179,28 +289,41 @@ function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories
   const [minStock, setMinStock] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const createItem = useMutation(api.inventory.createInventoryItem)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setName('')
+    setQuantity('1')
+    setUnit('piece')
+    setCategoryId(undefined)
+    setMinStock('')
+    setExpirationDate('')
+    setNotes('')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    void createItem({
-      name,
-      quantity: parseFloat(quantity) || 0,
-      unit,
-      categoryId,
-      minStock: minStock ? parseFloat(minStock) : undefined,
-      expirationDate: expirationDate ? new Date(expirationDate).getTime() : undefined,
-      notes: notes || undefined,
-    }).then(() => {
+    try {
+      setIsSubmitting(true)
+      await createItem({
+        name,
+        quantity: parseFloat(quantity) || 0,
+        unit,
+        categoryId,
+        minStock: minStock ? parseFloat(minStock) : undefined,
+        expirationDate: expirationDate ? new Date(expirationDate).getTime() : undefined,
+        notes: notes || undefined,
+      })
+      toast.success('Item added')
       setOpen(false)
-      setName('')
-      setQuantity('1')
-      setUnit('piece')
-      setCategoryId(undefined)
-      setMinStock('')
-      setExpirationDate('')
-      setNotes('')
-    })
+      resetForm()
+    } catch (error) {
+      console.error('Failed to add item', error)
+      toast.error('Failed to add item')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -303,7 +426,16 @@ function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add Item</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Add Item'
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

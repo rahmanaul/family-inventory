@@ -17,7 +17,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useState } from 'react'
-import { Plus, Trash2, ShoppingCart } from 'lucide-react'
+import { Plus, Trash2, ShoppingCart, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Id } from '../../convex/_generated/dataModel'
 
 export const Route = createFileRoute('/shopping-list')({
@@ -263,22 +264,35 @@ function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
   const [categoryId, setCategoryId] = useState<Id<'categories'> | undefined>(undefined)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const createItem = useMutation(api.shoppingList.createShoppingListItem)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setName('')
+    setQuantity('')
+    setUnit('')
+    setCategoryId(undefined)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    void createItem({
-      name,
-      quantity: quantity ? parseFloat(quantity) : undefined,
-      unit: unit || undefined,
-      categoryId,
-    }).then(() => {
+    try {
+      setIsSubmitting(true)
+      await createItem({
+        name,
+        quantity: quantity ? parseFloat(quantity) : undefined,
+        unit: unit || undefined,
+        categoryId,
+      })
+      toast.success('Item added to shopping list')
       setOpen(false)
-      setName('')
-      setQuantity('')
-      setUnit('')
-      setCategoryId(undefined)
-    })
+      resetForm()
+    } catch (error) {
+      console.error('Failed to add shopping list item', error)
+      toast.error('Failed to add item')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -351,7 +365,16 @@ function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add Item</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Add Item'
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
