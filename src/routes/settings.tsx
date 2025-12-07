@@ -7,6 +7,17 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -18,6 +29,7 @@ import {
 import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Settings as SettingsIcon, Tag, Users, Copy, Check, UserPlus, X, Lock } from 'lucide-react'
 import { Id } from '../../convex/_generated/dataModel'
+import { toast } from 'sonner'
 
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
@@ -32,11 +44,7 @@ function SettingsPage() {
   const inviteCode = useQuery(api.households.getHouseholdInviteCode, {})
   const deleteCategory = useMutation(api.categories.deleteCategory)
 
-  const handleDeleteCategory = (categoryId: Id<'categories'>) => {
-    if (confirm('Are you sure you want to delete this category? Items in this category will not be deleted.')) {
-      void deleteCategory({ categoryId })
-    }
-  }
+  const handleDeleteCategory = (categoryId: Id<'categories'>) => void deleteCategory({ categoryId })
 
   if (household === undefined || categories === undefined || membersData === undefined || inviteCode === undefined) {
     return (
@@ -191,13 +199,28 @@ function SettingsPage() {
                       </div>
                       <div className="flex gap-1">
                         <EditCategoryDialog category={category} />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteCategory(category._id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete this category?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Items in this category will stay in your inventory but lose this
+                                tag.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteCategory(category._id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   </CardHeader>
@@ -437,7 +460,7 @@ function InviteCodeSection({ inviteCode }: { inviteCode: string | null }) {
       setCode(newCode)
     } catch (error) {
       console.error('Failed to generate invite code:', error)
-      alert('Failed to generate invite code. Please try again.')
+      toast.error('Failed to generate invite code. Please try again.')
     } finally {
       setIsGenerating(false)
     }
@@ -560,29 +583,43 @@ function RemoveMemberButton({ memberId }: { memberId: Id<'householdMembers'> }) 
   const [isRemoving, setIsRemoving] = useState(false)
 
   const handleRemove = async () => {
-    if (!confirm('Are you sure you want to remove this member from the household?')) {
-      return
-    }
-
     setIsRemoving(true)
     try {
       await removeMember({ memberId })
     } catch (error: any) {
-      alert(error.message || 'Failed to remove member')
+      console.error('Failed to remove member', error)
+      toast.error(error.message || 'Failed to remove member')
     } finally {
       setIsRemoving(false)
     }
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={handleRemove}
-      disabled={isRemoving}
-    >
-      <X className="h-4 w-4" />
-    </Button>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={isRemoving}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove this member?</AlertDialogTitle>
+          <AlertDialogDescription>
+            They will lose access to the household. You can re-invite them later if needed.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleRemove} disabled={isRemoving}>
+            {isRemoving ? 'Removing...' : 'Remove'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
@@ -632,7 +669,7 @@ function ChangePasswordDialog() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      alert('Password changed successfully')
+      toast.success('Password changed successfully')
     } catch (err: any) {
       setError(err.message || 'Failed to change password')
     } finally {

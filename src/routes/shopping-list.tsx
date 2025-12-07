@@ -8,6 +8,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,9 +45,7 @@ function ShoppingListPage() {
   const updateItem = useMutation(api.shoppingList.updateShoppingListItem)
 
   const handleDelete = (itemId: Id<'shoppingListItems'>) => {
-    if (confirm('Are you sure you want to delete this item?')) {
-      void deleteItem({ itemId })
-    }
+    void deleteItem({ itemId })
   }
 
   const handleBoughtChange = (itemId: Id<'shoppingListItems'>, checked: boolean) => {
@@ -111,13 +120,27 @@ function ShoppingListPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <EditItemDialog item={item} categories={categories} />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(item._id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete this item?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will remove the item from your shopping list.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(item._id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </div>
                       </CardHeader>
@@ -200,13 +223,27 @@ function ShoppingListPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <EditItemDialog item={item} categories={categories} />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(item._id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete this item?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will remove the item from your shopping list.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(item._id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </div>
                       </CardHeader>

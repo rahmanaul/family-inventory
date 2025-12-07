@@ -9,6 +9,17 @@ import { format } from 'date-fns'
 import { Id } from '../../convex/_generated/dataModel'
 import { useMutation } from 'convex/react'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,12 +44,10 @@ function RouteComponent() {
   const deleteItem = useMutation(api.inventory.deleteInventoryItem)
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this item?')) {
-      void deleteItem({ itemId: itemId as Id<'inventoryItems'> }).then(() => {
-        // Navigate back to inventory list after deletion
-        navigate({ to: '/inventory' })
-      })
-    }
+    void deleteItem({ itemId: itemId as Id<'inventoryItems'> }).then(() => {
+      // Navigate back to inventory list after deletion
+      navigate({ to: '/inventory' })
+    })
   }
 
   if (item === undefined || categories === undefined) {
@@ -96,9 +105,25 @@ function RouteComponent() {
             </div>
             <div className="flex gap-2">
               <EditItemDialog item={item} categories={categories} />
-              <Button variant="ghost" size="icon" onClick={handleDelete}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this item?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will remove the item from your inventory permanently.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </CardHeader>

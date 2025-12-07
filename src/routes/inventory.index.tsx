@@ -7,6 +7,17 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,11 +45,7 @@ function InventoryPage() {
   )
   const deleteItem = useMutation(api.inventory.deleteInventoryItem)
 
-  const handleDelete = (itemId: Id<'inventoryItems'>) => {
-    if (confirm('Are you sure you want to delete this item?')) {
-      void deleteItem({ itemId })
-    }
-  }
+  const handleDelete = (itemId: Id<'inventoryItems'>) => void deleteItem({ itemId })
 
   if (inventoryItems === undefined || categories === undefined) {
     return (
@@ -110,13 +117,28 @@ function InventoryPage() {
                     </div>
                     <div className="flex gap-1">
                       <EditItemDialog item={item} categories={categories} />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(item._id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this item?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will remove the item from your inventory. You can add it again
+                              later if needed.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(item._id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </CardHeader>
