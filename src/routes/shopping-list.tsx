@@ -16,8 +16,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { useState } from 'react'
-import { Plus, Trash2, ShoppingCart, Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, Trash2, ShoppingCart, Loader2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { Id } from '../../convex/_generated/dataModel'
 
@@ -109,13 +109,16 @@ function ShoppingListPage() {
                               </CardDescription>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(item._id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <EditItemDialog item={item} categories={categories} />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(item._id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -195,13 +198,16 @@ function ShoppingListPage() {
                               </CardDescription>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(item._id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <EditItemDialog item={item} categories={categories} />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(item._id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -255,6 +261,152 @@ function ShoppingListPage() {
         </>
       )}
     </div>
+  )
+}
+
+function EditItemDialog({
+  item,
+  categories,
+}: {
+  item: {
+    _id: Id<'shoppingListItems'>
+    name: string
+    quantity?: number
+    unit?: string
+    categoryId?: Id<'categories'>
+  }
+  categories: Array<{ _id: Id<'categories'>; name: string; icon?: string }>
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(item.name)
+  const [quantity, setQuantity] = useState(item.quantity?.toString() ?? '')
+  const [unit, setUnit] = useState(item.unit ?? '')
+  const [categoryId, setCategoryId] = useState<Id<'categories'> | undefined>(item.categoryId)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const updateItem = useMutation(api.shoppingList.updateShoppingListItem)
+
+  useEffect(() => {
+    if (open) {
+      setName(item.name)
+      setQuantity(item.quantity !== undefined ? item.quantity.toString() : '')
+      setUnit(item.unit ?? '')
+      setCategoryId(item.categoryId)
+    }
+  }, [open, item])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      setIsSubmitting(true)
+      const parsedQuantity =
+        quantity.trim() === '' ? undefined : Number.parseFloat(quantity)
+      if (parsedQuantity !== undefined && Number.isNaN(parsedQuantity)) {
+        toast.error('Quantity must be a number')
+        return
+      }
+
+      await updateItem({
+        itemId: item._id,
+        name,
+        quantity: parsedQuantity,
+        unit: unit.trim() || undefined,
+        categoryId,
+      })
+      toast.success('Item updated')
+      setOpen(false)
+    } catch (error) {
+      console.error('Failed to update shopping list item', error)
+      toast.error('Failed to update item')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Edit item">
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Shopping List Item</DialogTitle>
+          <DialogDescription>
+            Update item details to reflect what you actually bought
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor={`edit-name-${item._id}`}>Name *</Label>
+              <Input
+                id={`edit-name-${item._id}`}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Item name"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor={`edit-quantity-${item._id}`}>Quantity</Label>
+                <Input
+                  id={`edit-quantity-${item._id}`}
+                  type="number"
+                  step="0.01"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`edit-unit-${item._id}`}>Unit</Label>
+                <Input
+                  id={`edit-unit-${item._id}`}
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  placeholder="piece, kg, etc."
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor={`edit-category-${item._id}`}>Category</Label>
+              <select
+                id={`edit-category-${item._id}`}
+                value={categoryId || ''}
+                onChange={(e) =>
+                  setCategoryId(e.target.value ? (e.target.value as Id<'categories'>) : undefined)
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">None</option>
+                {categories.map((cat) => (
+                  <option key={cat._id} value={cat._id}>
+                    {cat.icon} {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="mt-6">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save changes'
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
