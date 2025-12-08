@@ -4,7 +4,7 @@ import { api } from '../../convex/_generated/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react'
+import { ArrowLeft, Edit, Loader2, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Id } from '../../convex/_generated/dataModel'
 import { useMutation } from 'convex/react'
@@ -31,6 +31,7 @@ import {
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 
 export const Route = createFileRoute('/inventory/$itemId')({
   component: RouteComponent,
@@ -195,22 +196,31 @@ function EditItemDialog({
     item.expirationDate ? new Date(item.expirationDate).toISOString().split('T')[0] : ''
   )
   const [notes, setNotes] = useState(item.notes || '')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const updateItem = useMutation(api.inventory.updateInventoryItem)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    void updateItem({
-      itemId: item._id,
-      name,
-      quantity: parseFloat(quantity) || 0,
-      unit,
-      categoryId,
-      minStock: minStock ? parseFloat(minStock) : undefined,
-      expirationDate: expirationDate ? new Date(expirationDate).getTime() : undefined,
-      notes: notes || undefined,
-    }).then(() => {
+    try {
+      setIsSubmitting(true)
+      await updateItem({
+        itemId: item._id,
+        name,
+        quantity: parseFloat(quantity) || 0,
+        unit,
+        categoryId,
+        minStock: minStock ? parseFloat(minStock) : undefined,
+        expirationDate: expirationDate ? new Date(expirationDate).getTime() : undefined,
+        notes: notes || undefined,
+      })
+      toast.success('Item updated')
       setOpen(false)
-    })
+    } catch (error) {
+      console.error('Failed to update inventory item', error)
+      toast.error('Failed to update item')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -306,7 +316,16 @@ function EditItemDialog({
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
