@@ -163,7 +163,7 @@ function InventoryPage() {
                       <div>
                         <span className="text-sm font-medium">Expires: </span>
                         <span className="text-sm">
-                          {format(new Date(item.expirationDate), 'MMM d, yyyy')}
+                          {format(new Date(item.expirationDate), 'dd/MM/yyyy')}
                         </span>
                       </div>
                     )}

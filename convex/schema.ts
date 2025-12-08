@@ -48,6 +48,7 @@ export default defineSchema({
     categoryId: v.optional(v.id("categories")),
     isBought: v.boolean(),
     isAddedToInventory: v.boolean(),
+    isProcessing: v.optional(v.boolean()),
     linkedInventoryItemId: v.optional(v.id("inventoryItems")),
     addedBy: v.id("users"),
   })

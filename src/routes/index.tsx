@@ -160,7 +160,7 @@ function Dashboard() {
                             </Badge>
                           )}
                           <span className="text-sm text-muted-foreground">
-                            {format(new Date(item.expirationDate!), "MMM d, yyyy")}
+                            {format(new Date(item.expirationDate!), "dd/MM/yyyy")}
                           </span>
                         </div>
                       </div>

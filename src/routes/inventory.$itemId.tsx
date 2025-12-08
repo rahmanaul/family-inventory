@@ -152,7 +152,7 @@ function RouteComponent() {
               <div>
                 <span className="text-sm font-medium text-muted-foreground">Expiration Date</span>
                 <p className="text-lg">
-                  {format(new Date(item.expirationDate), 'MMMM d, yyyy')}
+                  {format(new Date(item.expirationDate), 'dd/MM/yyyy')}
                 </p>
               </div>
             )}
