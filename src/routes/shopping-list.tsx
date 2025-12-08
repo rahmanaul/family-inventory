@@ -84,7 +84,7 @@ function ShoppingListPage() {
             Manage your shopping list
           </p>
         </div>
-        <AddItemDialog categories={categories} />
+        <AddItemDialog categories={categories} existingItems={shoppingListItems} />
       </div>
 
       {activeItems.length === 0 && boughtItems.length === 0 ? (
@@ -92,7 +92,7 @@ function ShoppingListPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4">Your shopping list is empty</p>
-            <AddItemDialog categories={categories} />
+            <AddItemDialog categories={categories} existingItems={shoppingListItems} />
           </CardContent>
         </Card>
       ) : (
@@ -447,33 +447,99 @@ function EditItemDialog({
   )
 }
 
-function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories'>; name: string; icon?: string }> }) {
+type ShoppingListItem = {
+  _id: Id<'shoppingListItems'>
+  name: string
+  quantity?: number
+  unit?: string
+  categoryId?: Id<'categories'>
+  isBought: boolean
+  isAddedToInventory: boolean
+}
+
+function AddItemDialog({
+  categories,
+  existingItems,
+}: {
+  categories: Array<{ _id: Id<'categories'>; name: string; icon?: string }>
+  existingItems: ShoppingListItem[]
+}) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
   const [categoryId, setCategoryId] = useState<Id<'categories'> | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [pendingDuplicateId, setPendingDuplicateId] = useState<Id<'shoppingListItems'> | null>(null)
   const createItem = useMutation(api.shoppingList.createShoppingListItem)
+  const updateItem = useMutation(api.shoppingList.updateShoppingListItem)
 
   const resetForm = () => {
     setName('')
     setQuantity('')
     setUnit('')
     setCategoryId(undefined)
+    setPendingDuplicateId(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       setIsSubmitting(true)
-      await createItem({
-        name,
-        quantity: quantity ? parseFloat(quantity) : undefined,
-        unit: unit || undefined,
-        categoryId,
-      })
-      toast.success('Item added to shopping list')
+      const normalizedName = name.trim().toLowerCase()
+      const parsedQuantity = quantity ? parseFloat(quantity) : undefined
+
+      if (parsedQuantity !== undefined && Number.isNaN(parsedQuantity)) {
+        toast.error('Quantity must be a number')
+        return
+      }
+
+      const existing = existingItems.find(
+        (item) =>
+          item.name.trim().toLowerCase() === normalizedName &&
+          !(item.isBought && item.isAddedToInventory)
+      )
+
+      if (existing && pendingDuplicateId !== existing._id) {
+        setPendingDuplicateId(existing._id)
+        toast.message('Item already exists', {
+          description: 'Submit again to add this quantity to the existing item.',
+        })
+        return
+      }
+
+      if (existing && pendingDuplicateId === existing._id) {
+        const incrementBy = parsedQuantity ?? 1
+        const newQuantity = (existing.quantity ?? 0) + incrementBy
+
+        const updates: {
+          quantity: number
+          unit?: string
+          categoryId?: Id<'categories'>
+        } = { quantity: newQuantity }
+
+        if (unit.trim() && !existing.unit) {
+          updates.unit = unit.trim()
+        }
+        if (categoryId && !existing.categoryId) {
+          updates.categoryId = categoryId
+        }
+
+        await updateItem({
+          itemId: existing._id,
+          ...updates,
+        })
+        toast.success('Quantity added to existing item')
+      } else {
+        await createItem({
+          name,
+          quantity: parsedQuantity,
+          unit: unit || undefined,
+          categoryId,
+        })
+        toast.success('Item added to shopping list')
+      }
+
       setOpen(false)
       resetForm()
     } catch (error) {
