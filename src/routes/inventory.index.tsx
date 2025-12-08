@@ -36,6 +36,17 @@ export const Route = createFileRoute('/inventory/')({
   component: InventoryPage,
 })
 
+type InventoryItem = {
+  _id: Id<'inventoryItems'>
+  name: string
+  quantity: number
+  unit: string
+  categoryId?: Id<'categories'>
+  minStock?: number
+  expirationDate?: number
+  notes?: string
+}
+
 function InventoryPage() {
   const categories = useQuery(api.categories.getCategories, {})
   const [selectedCategoryId, setSelectedCategoryId] = useState<Id<'categories'> | undefined>(undefined)
@@ -64,7 +75,7 @@ function InventoryPage() {
             Manage your household inventory
           </p>
         </div>
-        <AddItemDialog categories={categories} />
+        <AddItemDialog categories={categories} existingItems={inventoryItems} />
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -93,7 +104,7 @@ function InventoryPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Package className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No items found</p>
-            <AddItemDialog categories={categories} />
+            <AddItemDialog categories={categories} existingItems={inventoryItems} />
           </CardContent>
         </Card>
       ) : (
@@ -302,7 +313,13 @@ function QuantityControls({
   )
 }
 
-function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories'>; name: string; icon?: string }> }) {
+function AddItemDialog({
+  categories,
+  existingItems,
+}: {
+  categories: Array<{ _id: Id<'categories'>; name: string; icon?: string }>
+  existingItems: InventoryItem[]
+}) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('1')
@@ -312,7 +329,9 @@ function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories
   const [expirationDate, setExpirationDate] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [pendingDuplicateId, setPendingDuplicateId] = useState<Id<'inventoryItems'> | null>(null)
   const createItem = useMutation(api.inventory.createInventoryItem)
+  const updateItem = useMutation(api.inventory.updateInventoryItem)
 
   const resetForm = () => {
     setName('')
@@ -322,22 +341,53 @@ function AddItemDialog({ categories }: { categories: Array<{ _id: Id<'categories
     setMinStock('')
     setExpirationDate('')
     setNotes('')
+    setPendingDuplicateId(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       setIsSubmitting(true)
-      await createItem({
-        name,
-        quantity: parseFloat(quantity) || 0,
-        unit,
-        categoryId,
-        minStock: minStock ? parseFloat(minStock) : undefined,
-        expirationDate: expirationDate ? new Date(expirationDate).getTime() : undefined,
-        notes: notes || undefined,
-      })
-      toast.success('Item added')
+      const normalizedName = name.trim().toLowerCase()
+      const parsedQuantity = parseFloat(quantity)
+
+      if (!Number.isFinite(parsedQuantity)) {
+        toast.error('Quantity must be a number')
+        return
+      }
+
+      const existing = existingItems.find(
+        (item) => item.name.trim().toLowerCase() === normalizedName
+      )
+
+      if (existing && pendingDuplicateId !== existing._id) {
+        setPendingDuplicateId(existing._id)
+        toast.message('Item already exists', {
+          description: 'Submit again to add this quantity to the existing item.',
+        })
+        return
+      }
+
+      if (existing && pendingDuplicateId === existing._id) {
+        const newQuantity = existing.quantity + parsedQuantity
+        await updateItem({
+          itemId: existing._id,
+          quantity: newQuantity,
+        })
+        toast.success('Quantity added to existing item')
+      } else {
+        await createItem({
+          name,
+          quantity: parsedQuantity,
+          unit,
+          categoryId,
+          minStock: minStock ? parseFloat(minStock) : undefined,
+          expirationDate: expirationDate ? new Date(expirationDate).getTime() : undefined,
+          notes: notes || undefined,
+        })
+        toast.success('Item added')
+      }
+
       setOpen(false)
       resetForm()
     } catch (error) {
