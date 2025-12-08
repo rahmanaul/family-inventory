@@ -157,12 +157,12 @@ function RouteComponent() {
                 </p>
               </div>
             )}
-            {item.notes && (
-              <div>
-                <span className="text-sm font-medium text-muted-foreground">Notes</span>
-                <p className="text-lg text-muted-foreground whitespace-pre-wrap">{item.notes}</p>
-              </div>
-            )}
+            <div>
+              <span className="text-sm font-medium text-muted-foreground">Notes</span>
+              <p className="text-lg text-muted-foreground whitespace-pre-wrap">
+                {item.notes?.trim() ? item.notes : '-'}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

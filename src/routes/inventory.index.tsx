@@ -178,12 +178,12 @@ function InventoryPage() {
                         </span>
                       </div>
                     )}
-                    {item.notes && (
-                      <div>
-                        <span className="text-sm font-medium">Notes: </span>
-                        <span className="text-sm text-muted-foreground">{item.notes}</span>
-                      </div>
-                    )}
+                    <div>
+                      <span className="text-sm font-medium">Notes: </span>
+                      <span className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {item.notes?.trim() ? item.notes : '-'}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-4">
                     <Button variant="outline" size="sm" className="w-full" asChild>
