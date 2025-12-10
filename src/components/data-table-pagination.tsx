@@ -59,7 +59,7 @@ export function DataTablePagination<TData>({
         <div className="flex items-center justify-between sm:justify-start">
           <div className="text-sm font-medium">
             Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+            {table.getPageCount()} <span className="text-muted-foreground">({totalRows} {totalRows === 1 ? 'item' : 'items'})</span>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2">
             <Button
