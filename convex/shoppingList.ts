@@ -404,13 +404,18 @@ export const addLowStockItemToShoppingList = mutation({
       throw new Error("Not authorized for this household");
     }
 
+    // Calculate how much needs to be replenished and ensure it's always positive
+    const shortage =
+      inventoryItem.minStock !== undefined
+        ? inventoryItem.minStock - inventoryItem.quantity
+        : 1;
+    const quantityToAdd = Math.max(Number(shortage.toFixed(2)), 1);
+
     const shoppingListItemId: Id<"shoppingListItems"> = await ctx.runMutation(
       api.shoppingList.createShoppingListItem,
       {
         name: inventoryItem.name,
-        quantity: inventoryItem.minStock
-          ? inventoryItem.minStock - inventoryItem.quantity
-          : 1,
+        quantity: quantityToAdd,
         unit: inventoryItem.unit,
         categoryId: inventoryItem.categoryId,
         linkedInventoryItemId: args.inventoryItemId,

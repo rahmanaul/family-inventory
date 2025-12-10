@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, differenceInDays } from "date-fns";
-import { AlertTriangle, Clock, Plus } from "lucide-react";
+import { AlertTriangle, Clock, Loader2, Plus } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { Id } from "../../convex/_generated/dataModel";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -18,6 +20,7 @@ function Dashboard() {
   const lowStockItems = useQuery(api.inventory.getLowStockItems, {});
   const expiringItems = useQuery(api.inventory.getExpiringSoonItems, {});
   const addToShoppingList = useMutation(api.shoppingList.addLowStockItemToShoppingList);
+  const [addingItemId, setAddingItemId] = useState<Id<"inventoryItems"> | null>(null);
 
   // Seed default categories if household exists but no categories
   const categories = useQuery(api.categories.getCategories, {});
@@ -93,12 +96,31 @@ function Dashboard() {
                     </div>
                     <Button
                       size="sm"
-                      onClick={() =>
-                        void addToShoppingList({ inventoryItemId: item._id })
-                      }
+                      onClick={async () => {
+                        try {
+                          setAddingItemId(item._id);
+                          await addToShoppingList({ inventoryItemId: item._id });
+                          toast.success("Added to shopping list");
+                        } catch (error) {
+                          console.error("Failed to add low stock item to shopping list", error);
+                          toast.error("Unable to add to shopping list");
+                        } finally {
+                          setAddingItemId(null);
+                        }
+                      }}
+                      disabled={addingItemId === item._id}
                     >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add to List
+                      {addingItemId === item._id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add to List
+                        </>
+                      )}
                     </Button>
                   </div>
                 ))}
