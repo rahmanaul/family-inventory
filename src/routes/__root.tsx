@@ -27,7 +27,7 @@ function RootComponent() {
     <ConvexAuthProvider client={convex}>
       <Authenticated>
         <div className="min-h-screen">
-          <Toaster position="top-right" richColors closeButton />
+          <Toaster position="top-right" richColors />
           <Header />
           <main className="container mx-auto p-4">
             <Outlet />
@@ -35,7 +35,7 @@ function RootComponent() {
         </div>
       </Authenticated>
       <Unauthenticated>
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster position="top-right" richColors />
         <UnauthenticatedContent />
       </Unauthenticated>
     </ConvexAuthProvider>
