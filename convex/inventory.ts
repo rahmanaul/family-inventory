@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api } from "./_generated/api";
@@ -10,38 +11,33 @@ import { Id } from "./_generated/dataModel";
 export const getInventoryItems = query({
   args: {
     categoryId: v.optional(v.id("categories")),
+    paginationOpts: paginationOptsValidator,
   },
-  returns: v.array(
-    v.object({
-      _id: v.id("inventoryItems"),
-      _creationTime: v.number(),
-      householdId: v.id("households"),
-      categoryId: v.optional(v.id("categories")),
-      name: v.string(),
-      quantity: v.number(),
-      unit: v.string(),
-      minStock: v.optional(v.number()),
-      expirationDate: v.optional(v.number()),
-      notes: v.optional(v.string()),
-      lastUpdatedBy: v.id("users"),
-    })
-  ),
-  handler: async (ctx, args): Promise<Array<{
-    _id: Id<"inventoryItems">;
-    _creationTime: number;
-    householdId: Id<"households">;
-    categoryId?: Id<"categories">;
-    name: string;
-    quantity: number;
-    unit: string;
-    minStock?: number;
-    expirationDate?: number;
-    notes?: string;
-    lastUpdatedBy: Id<"users">;
-  }>> => {
+  returns: v.object({
+    page: v.array(
+      v.object({
+        _id: v.id("inventoryItems"),
+        _creationTime: v.number(),
+        householdId: v.id("households"),
+        categoryId: v.optional(v.id("categories")),
+        name: v.string(),
+        quantity: v.number(),
+        unit: v.string(),
+        minStock: v.optional(v.number()),
+        expirationDate: v.optional(v.number()),
+        notes: v.optional(v.string()),
+        lastUpdatedBy: v.id("users"),
+      })
+    ),
+    isDone: v.boolean(),
+    continueCursor: v.union(v.string(), v.null()),
+    pageStatus: v.optional(v.union(v.string(), v.null())),
+    splitCursor: v.optional(v.union(v.string(), v.null())),
+  }),
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      return [];
+      return { page: [], isDone: true, continueCursor: null };
     }
 
     const household = await ctx.runQuery(api.households.getCurrentHousehold, {}) as {
@@ -51,25 +47,26 @@ export const getInventoryItems = query({
       createdBy: Id<"users">;
     } | null;
     if (!household) {
-      return [];
+      return { page: [], isDone: true, continueCursor: null };
     }
 
-    let queryBuilder = ctx.db
-      .query("inventoryItems")
-      .withIndex("by_householdId", (q) =>
-        q.eq("householdId", household._id)
-      );
+    const queryBuilder = args.categoryId
+      ? ctx.db
+          .query("inventoryItems")
+          .withIndex("by_householdId_and_categoryId", (q) =>
+            q.eq("householdId", household._id).eq("categoryId", args.categoryId)
+          )
+      : ctx.db
+          .query("inventoryItems")
+          .withIndex("by_householdId", (q) =>
+            q.eq("householdId", household._id)
+          );
 
-    if (args.categoryId) {
-      queryBuilder = ctx.db
-        .query("inventoryItems")
-        .withIndex("by_householdId_and_categoryId", (q) =>
-          q.eq("householdId", household._id).eq("categoryId", args.categoryId)
-        );
-    }
+    const page = await queryBuilder
+      .order("desc")
+      .paginate(args.paginationOpts);
 
-    const items = await queryBuilder.collect();
-    return items;
+    return page;
   },
 });
 

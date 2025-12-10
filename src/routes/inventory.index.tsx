@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery, useMutation, usePaginatedQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -50,15 +50,18 @@ type InventoryItem = {
 function InventoryPage() {
   const categories = useQuery(api.categories.getCategories, {})
   const [selectedCategoryId, setSelectedCategoryId] = useState<Id<'categories'> | undefined>(undefined)
-  const inventoryItems = useQuery(
+  const { results: inventoryItems, status: inventoryStatus, loadMore: loadMoreInventory } = usePaginatedQuery(
     api.inventory.getInventoryItems,
-    selectedCategoryId ? { categoryId: selectedCategoryId } : {}
+    { categoryId: selectedCategoryId },
+    { initialNumItems: 20 }
   )
   const deleteItem = useMutation(api.inventory.deleteInventoryItem)
 
   const handleDelete = (itemId: Id<'inventoryItems'>) => void deleteItem({ itemId })
 
-  if (inventoryItems === undefined || categories === undefined) {
+  const isInventoryLoading = inventoryItems === undefined || (inventoryItems.length === 0 && inventoryStatus === 'LoadingMore')
+
+  if (isInventoryLoading || categories === undefined) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <p>Loading...</p>
@@ -196,6 +199,14 @@ function InventoryPage() {
               </Card>
             )
           })}
+        </div>
+      )}
+
+      {inventoryStatus === 'CanLoadMore' && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => loadMoreInventory(20)}>
+            Load more
+          </Button>
         </div>
       )}
     </div>

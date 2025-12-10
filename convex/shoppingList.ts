@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api } from "./_generated/api";
@@ -8,27 +9,35 @@ import { Id } from "./_generated/dataModel";
  * Get all shopping list items for the current user's household
  */
 export const getShoppingListItems = query({
-  args: {},
-  returns: v.array(
-    v.object({
-      _id: v.id("shoppingListItems"),
-      _creationTime: v.number(),
-      householdId: v.id("households"),
-      name: v.string(),
-      quantity: v.optional(v.number()),
-      unit: v.optional(v.string()),
-      categoryId: v.optional(v.id("categories")),
-      isBought: v.boolean(),
-      isAddedToInventory: v.boolean(),
-      isProcessing: v.optional(v.boolean()),
-      linkedInventoryItemId: v.optional(v.id("inventoryItems")),
-      addedBy: v.id("users"),
-    })
-  ),
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    page: v.array(
+      v.object({
+        _id: v.id("shoppingListItems"),
+        _creationTime: v.number(),
+        householdId: v.id("households"),
+        name: v.string(),
+        quantity: v.optional(v.number()),
+        unit: v.optional(v.string()),
+        categoryId: v.optional(v.id("categories")),
+        isBought: v.boolean(),
+        isAddedToInventory: v.boolean(),
+        isProcessing: v.optional(v.boolean()),
+        linkedInventoryItemId: v.optional(v.id("inventoryItems")),
+        addedBy: v.id("users"),
+      })
+    ),
+    isDone: v.boolean(),
+    continueCursor: v.union(v.string(), v.null()),
+    pageStatus: v.optional(v.union(v.string(), v.null())),
+    splitCursor: v.optional(v.union(v.string(), v.null())),
+  }),
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      return [];
+      return { page: [], isDone: true, continueCursor: null };
     }
 
     const household = await ctx.runQuery(api.households.getCurrentHousehold, {}) as {
@@ -38,18 +47,21 @@ export const getShoppingListItems = query({
       createdBy: Id<"users">;
     } | null;
     if (!household) {
-      return [];
+      return { page: [], isDone: true, continueCursor: null };
     }
 
-    const items = await ctx.db
+    const page = await ctx.db
       .query("shoppingListItems")
       .withIndex("by_householdId", (q) =>
         q.eq("householdId", household._id)
       )
-      .collect();
+      .order("desc")
+      .paginate(args.paginationOpts);
 
-    // Filter out items that are both bought and added to inventory
-    return items.filter((item) => !(item.isBought && item.isAddedToInventory));
+    return {
+      ...page,
+      page: page.page.filter((item) => !(item.isBought && item.isAddedToInventory)),
+    };
   },
 });
 

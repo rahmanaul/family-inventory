@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery, useMutation } from 'convex/react'
+import { usePaginatedQuery, useMutation, useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -37,7 +37,11 @@ export const Route = createFileRoute('/shopping-list')({
 })
 
 function ShoppingListPage() {
-  const shoppingListItems = useQuery(api.shoppingList.getShoppingListItems, {})
+  const { results: shoppingListItems, status: shoppingStatus, loadMore: loadMoreShopping } = usePaginatedQuery(
+    api.shoppingList.getShoppingListItems,
+    {},
+    { initialNumItems: 20 }
+  )
   const categories = useQuery(api.categories.getCategories, {})
   const deleteItem = useMutation(api.shoppingList.deleteShoppingListItem)
   const markAsBought = useMutation(api.shoppingList.markAsBought)
@@ -64,7 +68,11 @@ function ShoppingListPage() {
     }
   }
 
-  if (shoppingListItems === undefined || categories === undefined) {
+  const isShoppingLoading =
+    shoppingListItems === undefined ||
+    (shoppingListItems.length === 0 && shoppingStatus === 'LoadingMore')
+
+  if (isShoppingLoading || categories === undefined) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <p>Loading...</p>
@@ -296,6 +304,14 @@ function ShoppingListPage() {
             </div>
           )}
         </>
+      )}
+
+      {shoppingStatus === 'CanLoadMore' && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => loadMoreShopping(20)}>
+            Load more
+          </Button>
+        </div>
       )}
     </div>
   )
