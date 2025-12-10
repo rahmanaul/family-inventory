@@ -162,25 +162,27 @@ function InventoryPage() {
                       <span className="text-sm font-medium">Quantity</span>
                       <QuantityControls item={item} />
                     </div>
-                    {item.minStock !== undefined && (
+                    {(
                       <div>
                         <span className="text-sm font-medium">Min Stock: </span>
                         <span className="text-sm">{item.minStock} {item.unit}</span>
-                        {item.quantity < item.minStock && (
+                        {item.minStock !== undefined && item.minStock !== null && item.quantity < item.minStock && (
                           <Badge variant="destructive" className="ml-2">
                             Low Stock
                           </Badge>
                         )}
                       </div>
                     )}
-                    {item.expirationDate && (
+                    {
                       <div>
                         <span className="text-sm font-medium">Expires: </span>
                         <span className="text-sm">
-                          {format(new Date(item.expirationDate), 'dd/MM/yyyy')}
+                          {
+                            item.expirationDate ? format(new Date(item.expirationDate), 'dd/MM/yyyy') : '-'
+                          }
                         </span>
                       </div>
-                    )}
+                    }
                     <div>
                       <span className="text-sm font-medium">Notes: </span>
                       <span className="text-sm text-muted-foreground whitespace-pre-wrap">
