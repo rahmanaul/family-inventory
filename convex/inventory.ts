@@ -30,14 +30,14 @@ export const getInventoryItems = query({
       })
     ),
     isDone: v.boolean(),
-    continueCursor: v.union(v.string(), v.null()),
+    continueCursor: v.string(),
     pageStatus: v.optional(v.union(v.string(), v.null())),
     splitCursor: v.optional(v.union(v.string(), v.null())),
   }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      return { page: [], isDone: true, continueCursor: null };
+      return { page: [], isDone: true, continueCursor: "" };
     }
 
     const household = await ctx.runQuery(api.households.getCurrentHousehold, {}) as {
@@ -47,7 +47,7 @@ export const getInventoryItems = query({
       createdBy: Id<"users">;
     } | null;
     if (!household) {
-      return { page: [], isDone: true, continueCursor: null };
+      return { page: [], isDone: true, continueCursor: "" };
     }
 
     const queryBuilder = args.categoryId
