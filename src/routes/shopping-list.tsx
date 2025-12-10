@@ -399,14 +399,14 @@ function ShoppingListTable({
               table.getIsAllPageRowsSelected() ||
               (table.getIsSomePageRowsSelected() && 'indeterminate')
             }
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            onCheckedChange={(value: boolean) => table.toggleAllPageRowsSelected(!!value)}
             aria-label="Select all"
           />
         ),
         cell: ({ row }) => (
           <Checkbox
             checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            onCheckedChange={(value: boolean) => row.toggleSelected(!!value)}
             aria-label="Select row"
           />
         ),
@@ -466,7 +466,7 @@ function ShoppingListTable({
             <div className="flex items-center space-x-2">
               <Checkbox
                 checked={item.isBought}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked: boolean) =>
                   handleBoughtChange(item._id, checked === true)
                 }
                 disabled={item.isBought && item.isAddedToInventory}
@@ -486,7 +486,7 @@ function ShoppingListTable({
             <div className="flex items-center space-x-2">
               <Checkbox
                 checked={item.isAddedToInventory}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked: boolean) =>
                   handleAddedToInventoryChange(item._id, checked === true)
                 }
               />

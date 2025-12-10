@@ -1,5 +1,3 @@
-"use client"
-
 import { Table } from "@tanstack/react-table"
 import { Settings2 } from "lucide-react"
 
@@ -45,7 +43,7 @@ export function DataTableViewOptions<TData>({
                 key={column.id}
                 className="capitalize"
                 checked={column.getIsVisible()}
-                onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                onCheckedChange={(value: boolean) => column.toggleVisibility(!!value)}
               >
                 {column.id}
               </DropdownMenuCheckboxItem>
