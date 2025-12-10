@@ -27,16 +27,40 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { useEffect, useState } from 'react'
-import { Plus, Trash2, ShoppingCart, Loader2, Pencil } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { Plus, Trash2, ShoppingCart, Loader2, Pencil, LayoutGrid, Table as TableIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Id } from '../../convex/_generated/dataModel'
+import {
+  ColumnDef,
+  ColumnFiltersState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
+  VisibilityState,
+} from '@tanstack/react-table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { DataTableColumnHeader } from '@/components/data-table-column-header'
+import { DataTablePagination } from '@/components/data-table-pagination'
+import { DataTableViewOptions } from '@/components/data-table-view-options'
 
 export const Route = createFileRoute('/shopping-list')({
   component: ShoppingListPage,
 })
 
 function ShoppingListPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const { results: shoppingListItems, status: shoppingStatus, loadMore: loadMoreShopping } = usePaginatedQuery(
     api.shoppingList.getShoppingListItems,
     {},
@@ -85,14 +109,36 @@ function ShoppingListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-3xl font-bold">Shopping List</h1>
           <p className="text-muted-foreground">
             Manage your shopping list
           </p>
         </div>
-        <AddItemDialog categories={categories} existingItems={shoppingListItems} />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center border rounded-md">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="rounded-r-none"
+            >
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Cards
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="rounded-l-none"
+            >
+              <TableIcon className="h-4 w-4 mr-2" />
+              Table
+            </Button>
+          </div>
+          <AddItemDialog categories={categories} existingItems={shoppingListItems} />
+        </div>
       </div>
 
       {activeItems.length === 0 && boughtItems.length === 0 ? (
@@ -103,7 +149,7 @@ function ShoppingListPage() {
             <AddItemDialog categories={categories} existingItems={shoppingListItems} />
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === 'cards' ? (
         <>
           {activeItems.length > 0 && (
             <div className="space-y-4">
@@ -304,15 +350,270 @@ function ShoppingListPage() {
             </div>
           )}
         </>
+      ) : (
+        <ShoppingListTable
+          items={shoppingListItems}
+          categories={categories}
+          handleDelete={handleDelete}
+          handleBoughtChange={handleBoughtChange}
+          handleAddedToInventoryChange={handleAddedToInventoryChange}
+        />
       )}
 
-      {shoppingStatus === 'CanLoadMore' && (
+      {viewMode === 'cards' && shoppingStatus === 'CanLoadMore' && (
         <div className="flex justify-center">
           <Button variant="outline" onClick={() => loadMoreShopping(20)}>
             Load more
           </Button>
         </div>
       )}
+    </div>
+  )
+}
+
+function ShoppingListTable({
+  items,
+  categories,
+  handleDelete,
+  handleBoughtChange,
+  handleAddedToInventoryChange,
+}: {
+  items: ShoppingListItem[]
+  categories: Array<{ _id: Id<'categories'>; name: string; icon?: string }>
+  handleDelete: (itemId: Id<'shoppingListItems'>) => void
+  handleBoughtChange: (itemId: Id<'shoppingListItems'>, checked: boolean) => void
+  handleAddedToInventoryChange: (itemId: Id<'shoppingListItems'>, checked: boolean) => void
+}) {
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = useState({})
+
+  const columns = useMemo<ColumnDef<ShoppingListItem>[]>(
+    () => [
+      {
+        id: 'select',
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && 'indeterminate')
+            }
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            aria-label="Select all"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      {
+        accessorKey: 'name',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Name" />
+        ),
+        cell: ({ row }) => <div className="font-medium">{row.getValue('name')}</div>,
+      },
+      {
+        accessorKey: 'categoryId',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Category" />
+        ),
+        cell: ({ row }) => {
+          const categoryId = row.getValue('categoryId') as Id<'categories'> | undefined
+          const category = categoryId ? categories.find((c) => c._id === categoryId) : null
+          return category ? (
+            <Badge variant="secondary">
+              {category.icon && <span className="mr-1">{category.icon}</span>}
+              {category.name}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )
+        },
+      },
+      {
+        accessorKey: 'quantity',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Quantity" />
+        ),
+        cell: ({ row }) => {
+          const quantity = row.getValue('quantity') as number | undefined
+          const unit = row.original.unit || 'piece'
+          return quantity !== undefined ? (
+            <div>
+              {quantity} {unit}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )
+        },
+      },
+      {
+        accessorKey: 'isBought',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Bought" />
+        ),
+        cell: ({ row }) => {
+          const item = row.original
+          return (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                checked={item.isBought}
+                onCheckedChange={(checked) =>
+                  handleBoughtChange(item._id, checked === true)
+                }
+                disabled={item.isBought && item.isAddedToInventory}
+              />
+            </div>
+          )
+        },
+      },
+      {
+        accessorKey: 'isAddedToInventory',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Added to Inventory" />
+        ),
+        cell: ({ row }) => {
+          const item = row.original
+          return (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                checked={item.isAddedToInventory}
+                onCheckedChange={(checked) =>
+                  handleAddedToInventoryChange(item._id, checked === true)
+                }
+              />
+            </div>
+          )
+        },
+      },
+      {
+        id: 'actions',
+        enableHiding: false,
+        cell: ({ row }) => {
+          const item = row.original
+          return (
+            <div className="flex items-center gap-2">
+              <EditItemDialog item={item} categories={categories} />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this item?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will remove the item from your shopping list.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDelete(item._id)}>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )
+        },
+      },
+    ],
+    [categories, handleDelete, handleBoughtChange, handleAddedToInventoryChange]
+  )
+
+  const table = useReactTable({
+    data: items,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Input
+          placeholder="Filter by name..."
+          value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
+          onChange={(event) =>
+            table.getColumn('name')?.setFilterValue(event.target.value)
+          }
+          className="max-w-sm"
+        />
+        <DataTableViewOptions table={table} />
+      </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  )
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && 'selected'}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <DataTablePagination table={table} />
     </div>
   )
 }
@@ -472,6 +773,8 @@ type ShoppingListItem = {
   isBought: boolean
   isAddedToInventory: boolean
 }
+
+type ViewMode = 'cards' | 'table'
 
 function AddItemDialog({
   categories,
